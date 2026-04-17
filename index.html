@@ -1,0 +1,2674 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EvalBoard — L&D Assignment Evaluator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      --bg: #f5f2ec;
+      --surface: #ffffff;
+      --surface2: #f0ece3;
+      --surface3: #e8e2d6;
+      --border: #ddd8cc;
+      --border2: #c8c0b0;
+      --ink: #1a1714;
+      --ink2: #4a4540;
+      --ink3: #8a847a;
+      --ink4: #b8b2a8;
+      --claude: #c4622d;
+      --claude-light: #fdf0ea;
+      --claude-border: #f0c9b5;
+      --gemini: #1a6b8a;
+      --gemini-light: #e8f4f8;
+      --gemini-border: #b5d8e8;
+      --green: #2d7a4a;
+      --green-light: #eaf3ed;
+      --amber: #b5620d;
+      --amber-light: #fdf3e8;
+      --red: #9b2c2c;
+      --red-light: #fdeaea;
+      --radius: 12px;
+      --radius-sm: 7px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Instrument Sans', sans-serif;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── LAYOUT ── */
+    .shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 220px;
+      background: var(--ink);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      padding: 0;
+    }
+
+    .brand {
+      padding: 22px 20px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-mark {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .brand-mark em {
+      color: var(--claude);
+      font-style: italic;
+    }
+
+    .brand-tagline {
+      font-size: 10.5px;
+      color: rgba(255, 255, 255, 0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 5px;
+    }
+
+    .nav {
+      flex: 1;
+      padding: 16px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-section-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.25);
+      padding: 12px 10px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.5);
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      text-align: left;
+      width: 100%;
+    }
+
+    .nav-item svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .nav-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .nav-item .badge {
+      margin-left: auto;
+      background: var(--claude);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 20px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ai-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .ai-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #666;
+      flex-shrink: 0;
+    }
+
+    .ai-dot.ready {
+      background: #4caf50;
+      box-shadow: 0 0 6px rgba(76, 175, 80, 0.5);
+    }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 58px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Fraunces', serif;
+      font-size: 19px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    .topbar-crumb {
+      font-size: 12px;
+      color: var(--ink3);
+    }
+
+    .topbar-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-ink {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .btn-ink:hover {
+      background: #2d2a26;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--ink2);
+      border: 1.5px solid var(--border2);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--ink3);
+      color: var(--ink);
+    }
+
+    .btn-claude {
+      background: var(--claude);
+      color: #fff;
+    }
+
+    .btn-claude:hover {
+      background: #a8521f;
+    }
+
+    .btn-gemini {
+      background: var(--gemini);
+      color: #fff;
+    }
+
+    .btn-gemini:hover {
+      background: #145878;
+    }
+
+    .btn-ghost {
+      background: none;
+      color: var(--ink3);
+      border: none;
+    }
+
+    .btn-ghost:hover {
+      color: var(--ink);
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 12px;
+    }
+
+    .btn-xs {
+      padding: 3px 9px;
+      font-size: 11px;
+    }
+
+    .btn-danger {
+      background: var(--red-light);
+      color: var(--red);
+      border: 1px solid #f0c0c0;
+    }
+
+    .btn-danger:hover {
+      background: #fcd5d5;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── CONTENT ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+    }
+
+    /* ── VIEWS ── */
+    .view {
+      display: none;
+      animation: fadein 0.18s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── STATS ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink3);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: 'Fraunces', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--ink4);
+      margin-top: 4px;
+    }
+
+    /* ── BATCH PANEL ── */
+    .batch-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .batch-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .batch-title {
+      font-family: 'Fraunces', serif;
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .batch-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .batch-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .batch-table th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink3);
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .batch-table td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .batch-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .batch-table tr:hover td {
+      background: var(--surface2);
+    }
+
+    .batch-table tr.selected td {
+      background: #fef8f5;
+    }
+
+    .file-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--ink2);
+      margin: 2px;
+    }
+
+    .file-pill.pdf {
+      background: var(--red-light);
+      border-color: #f0c0c0;
+      color: var(--red);
+    }
+
+    .file-pill.docx {
+      background: var(--gemini-light);
+      border-color: var(--gemini-border);
+      color: var(--gemini);
+    }
+
+    .file-pill.txt {
+      background: var(--green-light);
+      border-color: #b5d8c0;
+      color: var(--green);
+    }
+
+    /* ── STATUS BADGE ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-pending {
+      background: var(--amber-light);
+      color: var(--amber);
+    }
+
+    .status-evaluating {
+      background: var(--claude-light);
+      color: var(--claude);
+    }
+
+    .status-done {
+      background: var(--green-light);
+      color: var(--green);
+    }
+
+    .status-error {
+      background: var(--red-light);
+      color: var(--red);
+    }
+
+    .pulse {
+      animation: pulse 1.5s ease infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    /* ── AI PROVIDER SELECTOR ── */
+    .provider-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 0;
+    }
+
+    .provider-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--surface);
+      color: var(--ink3);
+      transition: all 0.15s;
+    }
+
+    .provider-tab.active-claude {
+      border-color: var(--claude);
+      background: var(--claude-light);
+      color: var(--claude);
+    }
+
+    .provider-tab.active-gemini {
+      border-color: var(--gemini);
+      background: var(--gemini-light);
+      color: var(--gemini);
+    }
+
+    .provider-logo {
+      font-size: 16px;
+    }
+
+    /* ── FORM ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink2);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+
+    .input {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 13px;
+      color: var(--ink);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .input:focus {
+      border-color: var(--ink3);
+    }
+
+    .input::placeholder {
+      color: var(--ink4);
+    }
+
+    textarea.input {
+      resize: vertical;
+      min-height: 72px;
+    }
+
+    /* ── UPLOAD ── */
+    .upload-area {
+      border: 2px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface);
+      position: relative;
+    }
+
+    .upload-area:hover,
+    .upload-area.over {
+      border-color: var(--claude);
+      background: var(--claude-light);
+    }
+
+    .upload-area input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .upload-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .upload-sub {
+      font-size: 12px;
+      color: var(--ink3);
+    }
+
+    .file-list-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    .file-list-table th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink3);
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .file-list-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+    }
+
+    .file-list-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── CRITERIA ── */
+    .criteria-builder {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .criteria-row {
+      display: grid;
+      grid-template-columns: 1fr 120px 36px;
+      gap: 8px;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+    }
+
+    .criteria-row input[type=text] {
+      background: none;
+      border: none;
+      outline: none;
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .criteria-row input[type=text]::placeholder {
+      color: var(--ink4);
+    }
+
+    .criteria-marks {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 8px;
+    }
+
+    .criteria-marks input {
+      width: 46px;
+      border: none;
+      outline: none;
+      background: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--claude);
+      text-align: center;
+    }
+
+    .criteria-marks span {
+      font-size: 10px;
+      color: var(--ink3);
+    }
+
+    .del-crit {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--ink4);
+      border-radius: 5px;
+      transition: all 0.12s;
+      font-size: 14px;
+    }
+
+    .del-crit:hover {
+      background: var(--red-light);
+      color: var(--red);
+    }
+
+    .weight-bar {
+      height: 4px;
+      background: var(--surface3);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .weight-fill {
+      height: 100%;
+      border-radius: 10px;
+      background: var(--green);
+      transition: width 0.3s, background 0.3s;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-family: 'Fraunces', serif;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    /* ── RESULTS ── */
+    .result-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .result-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-filename {
+      font-weight: 600;
+      font-size: 14.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-score-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .big-score {
+      font-family: 'Fraunces', serif;
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .grade-chip {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      border: 2px solid;
+    }
+
+    .result-body {
+      padding: 20px;
+    }
+
+    .result-section-title {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink3);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .summary-box {
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--ink3);
+      padding: 13px 15px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--ink2);
+      margin-bottom: 14px;
+    }
+
+    .summary-box.detailed {
+      border-left-color: var(--claude);
+    }
+
+    .summary-box.feedback {
+      border-left-color: var(--green);
+      background: var(--green-light);
+    }
+
+    .crit-score-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 160px;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .crit-score-row:last-child {
+      border-bottom: none;
+    }
+
+    .crit-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .crit-reasoning {
+      font-size: 11.5px;
+      color: var(--ink3);
+      margin-top: 2px;
+    }
+
+    .crit-pts {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      text-align: right;
+      font-weight: 500;
+    }
+
+    .mini-bar {
+      height: 5px;
+      background: var(--surface3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .mini-fill {
+      height: 100%;
+      border-radius: 10px;
+      background: var(--claude);
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 9px;
+      font-size: 12px;
+      color: var(--ink2);
+    }
+
+    .tag.strength {
+      background: var(--green-light);
+      border-color: #b5d8c0;
+      color: var(--green);
+    }
+
+    .tag.improvement {
+      background: var(--amber-light);
+      border-color: #e8c88a;
+      color: var(--amber);
+    }
+
+    .provider-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .provider-chip.claude {
+      background: var(--claude-light);
+      color: var(--claude);
+      border: 1px solid var(--claude-border);
+    }
+
+    .provider-chip.gemini {
+      background: var(--gemini-light);
+      color: var(--gemini);
+      border: 1px solid var(--gemini-border);
+    }
+
+    /* ── SETTINGS ── */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .settings-card-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .api-key-row {
+      position: relative;
+    }
+
+    .api-key-row input {
+      padding-right: 80px;
+    }
+
+    .key-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--ink3);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+    }
+
+    .key-toggle:hover {
+      color: var(--ink);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    /* ── MODAL ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 28px;
+      max-width: 480px;
+      width: 92%;
+      animation: fadein 0.18s ease;
+    }
+
+    .modal h3 {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      color: var(--ink3);
+      font-size: 13.5px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* ── LOADING ── */
+    .loading-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(245, 242, 236, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-screen.show {
+      display: flex;
+    }
+
+    .loader {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--claude);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-title {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      color: var(--ink);
+    }
+
+    .loading-sub {
+      font-size: 13px;
+      color: var(--ink3);
+      max-width: 320px;
+      text-align: center;
+    }
+
+    .progress-bar-wrap {
+      width: 280px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--claude);
+      border-radius: 10px;
+      transition: width 0.4s ease;
+    }
+
+    /* ── TOAST ── */
+    .toast-tray {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--ink);
+      color: #fff;
+      padding: 11px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-lg);
+      animation: fadein 0.2s ease;
+      max-width: 320px;
+    }
+
+    .toast.ok {
+      background: var(--green);
+    }
+
+    .toast.err {
+      background: var(--red);
+    }
+
+    /* ── EMPTY ── */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--ink3);
+    }
+
+    .empty svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.25;
+      margin-bottom: 14px;
+    }
+
+    .empty h3 {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .empty p {
+      font-size: 13px;
+    }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 10px;
+    }
+
+    /* ── CHECKBOX ── */
+    .cb-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .cb-wrap input[type=checkbox] {
+      accent-color: var(--claude);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    /* ── INLINE TEXT EDITOR ── */
+    .text-editor-area {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13.5px;
+      color: var(--ink);
+      outline: none;
+      line-height: 1.6;
+      transition: border-color 0.15s;
+    }
+
+    .text-editor-area:focus {
+      border-color: var(--ink3);
+    }
+
+    /* ── AI INFLUENCE ── */
+    .ai-influence-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .ai-inf-low { background: var(--green-light); color: var(--green); border: 1px solid #b5d8c0; }
+    .ai-inf-mid { background: var(--amber-light); color: var(--amber); border: 1px solid #e8c88a; }
+    .ai-inf-high { background: var(--red-light); color: var(--red); border: 1px solid #f0c0c0; }
+    .ai-inf-bar { height: 5px; background: var(--surface3); border-radius: 10px; overflow: hidden; margin-top: 4px; }
+    .ai-inf-fill { height: 100%; border-radius: 10px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+  </style>
+</head>
+
+<body>
+
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader"></div>
+    <div class="loading-title" id="loadTitle">Evaluating…</div>
+    <div class="loading-sub" id="loadSub">Claude is reviewing your submissions</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div class="overlay" id="deleteModal">
+    <div class="modal">
+      <h3>Delete assignment?</h3>
+      <p>This will permanently remove the assignment and all its evaluation results. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Tray -->
+  <div class="toast-tray" id="toastTray"></div>
+
+  <div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">Eval<em>Board</em></div>
+        <div class="brand-tagline">L&D Assignment Hub</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-section-label">Workspace</div>
+        <button class="nav-item active" onclick="nav('dashboard',this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Dashboard
+        </button>
+        <button class="nav-item" onclick="nav('new',this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          New Assignment
+        </button>
+        <button class="nav-item" onclick="nav('batch',this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          Batch Evaluate
+          <span class="badge" id="pendingBadge">0</span>
+        </button>
+        <div class="nav-section-label">Output</div>
+        <button class="nav-item" onclick="nav('results',this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          Results
+          <span class="badge" id="resultsBadge">0</span>
+        </button>
+        <div class="nav-section-label">Config</div>
+        <button class="nav-item" onclick="nav('settings',this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="ai-status">
+          <div class="ai-dot" id="claudeDot"></div>
+          <span id="claudeStatus">Claude: no key</span>
+        </div>
+        <div class="ai-status" style="margin-top:6px;">
+          <div class="ai-dot" id="geminiDot"></div>
+          <span id="geminiStatus">Gemini: no key</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="page-title" id="pageTitle">Dashboard</div>
+        </div>
+        <div class="topbar-right" id="topbarActions">
+          <button class="btn btn-outline btn-sm" onclick="nav('new', document.querySelectorAll('.nav-item')[1])">+
+            New</button>
+          <button class="btn btn-ink btn-sm" onclick="nav('batch', document.querySelectorAll('.nav-item')[2])">▶ Batch
+            Evaluate</button>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <!-- ══════ DASHBOARD ══════ -->
+        <div class="view active" id="view-dashboard">
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-label">Total</div>
+              <div class="stat-value" id="s-total">0</div>
+              <div class="stat-sub">assignments</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Pending</div>
+              <div class="stat-value" id="s-pending" style="color:var(--amber)">0</div>
+              <div class="stat-sub">awaiting review</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Evaluated</div>
+              <div class="stat-value" id="s-done" style="color:var(--green)">0</div>
+              <div class="stat-sub">completed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Avg Score</div>
+              <div class="stat-value" id="s-avg">—</div>
+              <div class="stat-sub">across all</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Files Total</div>
+              <div class="stat-value" id="s-files">0</div>
+              <div class="stat-sub">submissions</div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <div class="section-title">Recent Assignments</div>
+            <button class="btn btn-ghost btn-sm" onclick="nav('batch', document.querySelectorAll('.nav-item')[2])">View
+              all →</button>
+          </div>
+          <div id="recentCards"></div>
+        </div>
+
+        <!-- ══════ NEW ASSIGNMENT ══════ -->
+        <div class="view" id="view-new">
+          <!-- Step 1: Details -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">① Assignment Details</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="label">Assignment Title *</label>
+                <input class="input" id="nTitle" type="text" placeholder="e.g. Leadership Reflection Q4" />
+              </div>
+              <div class="form-group">
+                <label class="label">Cohort / Batch</label>
+                <input class="input" id="nCohort" type="text" placeholder="e.g. Manager Bootcamp Nov 2025" />
+              </div>
+              <div class="form-group full">
+                <label class="label">Assignment Context / Description</label>
+                <textarea class="input" id="nDesc"
+                  placeholder="Describe the topic, learning objectives, and what you expect from learners. Claude uses this when evaluating."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Submissions -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">② Submissions</div>
+
+            <!-- Tabs: Upload vs Type -->
+            <div style="display:flex; gap:0; margin-bottom:16px; border-bottom:1px solid var(--border);">
+              <button class="btn btn-ghost" id="tabUpload"
+                style="border-radius:0; border-bottom:2px solid var(--ink); color:var(--ink); margin-bottom:-1px;"
+                onclick="switchSubmissionTab('upload')">Upload Files</button>
+              <button class="btn btn-ghost" id="tabText"
+                style="border-radius:0; border-bottom:2px solid transparent; margin-bottom:-1px;"
+                onclick="switchSubmissionTab('text')">Type / Paste Text</button>
+            </div>
+
+            <div id="submissionUploadPanel">
+              <div class="upload-area" id="dropZone">
+                <input type="file" id="fileInput" multiple accept=".pdf,.txt,.docx,.doc,.md"
+                  onchange="handleFiles(this.files)" />
+                <div class="upload-icon">📁</div>
+                <div class="upload-title">Drop files here or click to browse</div>
+                <div class="upload-sub">PDF, DOCX, TXT, MD — multiple files accepted</div>
+              </div>
+              <div id="fileListWrap"></div>
+            </div>
+
+            <div id="submissionTextPanel" style="display:none;">
+              <div class="form-group">
+                <label class="label">Learner Name / ID</label>
+                <input class="input" id="tName" type="text" placeholder="e.g. Priya Sharma" />
+              </div>
+              <div class="form-group">
+                <label class="label">Submission Text *</label>
+                <textarea class="text-editor-area" id="tText"
+                  placeholder="Paste or type the learner's submission here…"></textarea>
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="addTextEntry()">+ Add Another Entry</button>
+              <div id="textEntries" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+          </div>
+
+          <!-- Step 3: Criteria -->
+          <div class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <div class="card-title">③ Evaluation Criteria</div>
+              <div style="font-size:12px; color:var(--ink3);">
+                Total: <span id="totalMark"
+                  style="font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--ink);">0</span> marks
+              </div>
+            </div>
+            <div class="criteria-builder" id="criteriaBuilder"></div>
+            <div class="weight-bar">
+              <div class="weight-fill" id="weightFill" style="width:0%"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <button class="btn btn-outline btn-sm" onclick="addCriterion()">+ Add Criterion</button>
+            </div>
+          </div>
+
+          <!-- Step 4: AI Provider -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:14px;">④ Choose AI Evaluator</div>
+            <div class="provider-tabs" id="providerTabs">
+              <button class="provider-tab active-claude" id="pt-claude" onclick="setProvider('claude')">
+                <span class="provider-logo">🟠</span> Claude (Anthropic)
+              </button>
+              <button class="provider-tab" id="pt-gemini" onclick="setProvider('gemini')">
+                <span class="provider-logo">🔵</span> Gemini (Google)
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:flex-end; padding-bottom:20px;">
+            <button class="btn btn-outline" onclick="clearNewForm()">Clear</button>
+            <button class="btn btn-outline" onclick="saveDraft()">💾 Save Draft</button>
+            <button class="btn btn-ink" onclick="saveAndEval()">✨ Save & Evaluate</button>
+          </div>
+        </div>
+
+        <!-- ══════ BATCH EVALUATE ══════ -->
+        <div class="view" id="view-batch">
+          <div class="batch-panel">
+            <div class="batch-header">
+              <div class="batch-title">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Batch Queue
+              </div>
+              <div class="batch-actions">
+                <button class="btn btn-outline btn-sm" style="color:#fff; border-color:rgba(255,255,255,0.25);"
+                  onclick="selectAll()">Select All Pending</button>
+                <button class="btn btn-claude btn-sm" id="batchRunBtn" onclick="runSelected()" disabled>▶ Run
+                  Selected</button>
+              </div>
+            </div>
+            <table class="batch-table" id="batchTable">
+              <thead>
+                <tr>
+                  <th style="width:36px;"><input type="checkbox" id="masterCb" onchange="toggleAllCb(this)" /></th>
+                  <th>Assignment</th>
+                  <th>Cohort</th>
+                  <th>Files</th>
+                  <th>Criteria</th>
+                  <th>AI</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>AI Influence</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="batchBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══════ RESULTS ══════ -->
+        <div class="view" id="view-results">
+          <div id="resultsWrap"></div>
+        </div>
+
+        <!-- ══════ SETTINGS ══════ -->
+        <div class="view" id="view-settings">
+          <div class="settings-grid">
+            <div class="settings-card">
+              <div class="settings-card-title">🟠 Claude (Anthropic)</div>
+              <div class="form-group">
+                <label class="label">API Key</label>
+                <div class="api-key-row">
+                  <input class="input" type="password" id="claudeKey" placeholder="sk-ant-…" />
+                  <button class="key-toggle" onclick="toggleVis('claudeKey', this)">Show</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="label">Model</label>
+                <select class="input" id="claudeModel">
+                  <option value="claude-sonnet-4-20250514">Claude Sonnet 4 — Recommended</option>
+                  <option value="claude-opus-4-20250514">Claude Opus 4 — Best Quality</option>
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest</option>
+                </select>
+              </div>
+              <button class="btn btn-claude btn-sm" onclick="saveClaude()">Save Claude Settings</button>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">🔵 Gemini (Google)</div>
+              <div class="form-group">
+                <label class="label">API Key</label>
+                <div class="api-key-row">
+                  <input class="input" type="password" id="geminiKey" placeholder="AIza…" />
+                  <button class="key-toggle" onclick="toggleVis('geminiKey', this)">Show</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="label">Model</label>
+                <select class="input" id="geminiModel">
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash — Recommended</option>
+                  <option value="gemini-2.5-pro-preview-06-05">Gemini 2.5 Pro — Best Quality</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash — Fast</option>
+                </select>
+              </div>
+              <button class="btn btn-gemini btn-sm" onclick="saveGemini()">Save Gemini Settings</button>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">🌐 General</div>
+              <div class="form-group">
+                <label class="label">Evaluation Language</label>
+                <select class="input" id="evalLang">
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                </select>
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="saveGeneral()">Save</button>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-title">🗑 Data</div>
+              <p style="font-size:13px; color:var(--ink3); margin-bottom:14px; line-height:1.6;">Clear all saved
+                assignments and results. API keys are stored in your browser's localStorage and never leave your device.
+              </p>
+              <button class="btn btn-danger btn-sm"
+                onclick="if(confirm('Delete all data?')){assignments=[];persist();refreshAll();toast('All data cleared');}">Clear
+                All Data</button>
+            </div>
+
+            <div class="settings-card" style="grid-column:1/-1;">
+              <div class="settings-card-title">📊 Google Sheets Direct Export <span style="font-size:11px;font-weight:400;color:var(--ink3);margin-left:8px;">Optional</span></div>
+              <p style="font-size:13px;color:var(--ink3);margin-bottom:14px;line-height:1.6;">
+                For direct one-click export to Google Sheets. Requires a Google Cloud project with the Sheets API enabled and an OAuth 2.0 Web Client ID with your domain in "Authorized JavaScript origins".<br>
+                <strong style="color:var(--ink2);">Leave blank</strong> to use the clipboard export instead — clicking "Export to Sheets" will copy data in a format you can paste directly into any Google Sheet.
+              </p>
+              <div class="form-group" style="max-width:480px;">
+                <label class="label">OAuth 2.0 Client ID</label>
+                <input class="input" id="googleClientId" type="text" placeholder="123456789-abc.apps.googleusercontent.com" />
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="saveGoogle()">Save Google Settings</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </main>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════
+    let assignments = JSON.parse(localStorage.getItem('ev_assignments') || '[]');
+    let currentFiles = [];
+    let textEntries = [];
+    let criteriaList = [];
+    let selectedProvider = 'claude';
+    let deleteTargetId = null;
+
+    let cfg = {
+      claudeKey: localStorage.getItem('ev_ckey') || '',
+      claudeModel: localStorage.getItem('ev_cmodel') || 'claude-sonnet-4-20250514',
+      geminiKey: localStorage.getItem('ev_gkey') || '',
+      geminiModel: localStorage.getItem('ev_gmodel') || 'gemini-2.0-flash',
+      lang: localStorage.getItem('ev_lang') || 'English',
+      googleClientId: localStorage.getItem('ev_gcid') || '',
+    };
+
+    // ═══════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSettingsUI();
+      updateKeyStatus();
+      addCriterion('Content Quality', 30);
+      addCriterion('Clarity & Structure', 25);
+      addCriterion('Critical Thinking', 25);
+      addCriterion('Practical Application', 20);
+      setupDragDrop();
+      refreshAll();
+    });
+
+    // ═══════════════════════════════════════
+    // NAV
+    // ═══════════════════════════════════════
+    function nav(page, btn) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('view-' + page).classList.add('active');
+      if (btn) btn.classList.add('active');
+      const titles = { dashboard: 'Dashboard', new: 'New Assignment', batch: 'Batch Evaluate', results: 'Results', settings: 'Settings' };
+      document.getElementById('pageTitle').textContent = titles[page] || page;
+      if (page === 'batch') renderBatch();
+      if (page === 'results') renderResults();
+      if (page === 'dashboard') renderDashboard();
+    }
+
+    // ═══════════════════════════════════════
+    // CRITERIA
+    // ═══════════════════════════════════════
+    function addCriterion(name = '', marks = '') {
+      const id = 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
+      criteriaList.push(id);
+      const wrap = document.getElementById('criteriaBuilder');
+      const div = document.createElement('div');
+      div.className = 'criteria-row';
+      div.id = id;
+      div.innerHTML = `
+    <input type="text" placeholder="e.g. Clarity of thought, Data use, Problem-solving…" value="${name}" oninput="recalcWeight()"/>
+    <div class="criteria-marks">
+      <input type="number" min="0" max="999" placeholder="0" value="${marks}" oninput="recalcWeight()"/>
+      <span>marks</span>
+    </div>
+    <button class="del-crit" onclick="delCrit('${id}')">✕</button>`;
+      wrap.appendChild(div);
+      recalcWeight();
+    }
+
+    function delCrit(id) {
+      criteriaList = criteriaList.filter(c => c !== id);
+      document.getElementById(id)?.remove();
+      recalcWeight();
+    }
+
+    function recalcWeight() {
+      const total = getCriteria().reduce((s, c) => s + c.marks, 0);
+      document.getElementById('totalMark').textContent = total;
+      const pct = Math.min(total / 100 * 100, 100);
+      const fill = document.getElementById('weightFill');
+      fill.style.width = pct + '%';
+      fill.style.background = total > 100 ? 'var(--red)' : total === 100 ? 'var(--green)' : 'var(--amber)';
+    }
+
+    function getCriteria() {
+      return [...document.querySelectorAll('.criteria-row')].map(el => ({
+        name: el.querySelector('input[type=text]').value.trim(),
+        marks: parseFloat(el.querySelector('input[type=number]').value) || 0
+      })).filter(c => c.name);
+    }
+
+    // ═══════════════════════════════════════
+    // FILES
+    // ═══════════════════════════════════════
+    function handleFiles(fileList) {
+      for (const f of fileList) {
+        if (!currentFiles.find(x => x.name === f.name)) currentFiles.push(f);
+      }
+      renderFileTable();
+    }
+
+    function renderFileTable() {
+      const wrap = document.getElementById('fileListWrap');
+      if (!currentFiles.length) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = `<table class="file-list-table" style="margin-top:12px;">
+    <thead><tr><th>File</th><th>Type</th><th>Size</th><th></th></tr></thead>
+    <tbody>${currentFiles.map((f, i) => `
+      <tr>
+        <td>${filePill(f.name)} ${f.name}</td>
+        <td style="color:var(--ink3)">${f.type || ext(f.name)}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${fmtSize(f.size)}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="removeFile(${i})">Remove</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+    }
+
+    function removeFile(i) { currentFiles.splice(i, 1); renderFileTable(); }
+    function ext(name) { return name.split('.').pop().toLowerCase(); }
+    function filePill(name) {
+      const e = ext(name);
+      const cls = e === 'pdf' ? 'pdf' : (e === 'docx' || e === 'doc') ? 'docx' : 'txt';
+      return `<span class="file-pill ${cls}">${e.toUpperCase()}</span>`;
+    }
+    function fmtSize(b) {
+      if (b < 1024) return b + 'B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + 'KB';
+      return (b / 1048576).toFixed(1) + 'MB';
+    }
+
+    function setupDragDrop() {
+      const zone = document.getElementById('dropZone');
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+      zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+    }
+
+    // ═══════════════════════════════════════
+    // TEXT ENTRIES
+    // ═══════════════════════════════════════
+    function switchSubmissionTab(tab) {
+      const isUpload = tab === 'upload';
+      document.getElementById('submissionUploadPanel').style.display = isUpload ? '' : 'none';
+      document.getElementById('submissionTextPanel').style.display = isUpload ? 'none' : '';
+      document.getElementById('tabUpload').style.borderBottom = isUpload ? '2px solid var(--ink)' : '2px solid transparent';
+      document.getElementById('tabUpload').style.color = isUpload ? 'var(--ink)' : 'var(--ink3)';
+      document.getElementById('tabText').style.borderBottom = !isUpload ? '2px solid var(--ink)' : '2px solid transparent';
+      document.getElementById('tabText').style.color = !isUpload ? 'var(--ink)' : 'var(--ink3)';
+    }
+
+    function addTextEntry() {
+      const name = document.getElementById('tName').value.trim();
+      const text = document.getElementById('tText').value.trim();
+      if (!text) { toast('Enter submission text first', 'err'); return; }
+      const entry = { name: name || 'Unnamed Learner', text, id: 'te' + Date.now() };
+      textEntries.push(entry);
+      document.getElementById('tName').value = '';
+      document.getElementById('tText').value = '';
+      renderTextEntries();
+    }
+
+    function removeTextEntry(id) {
+      textEntries = textEntries.filter(e => e.id !== id);
+      renderTextEntries();
+    }
+
+    function renderTextEntries() {
+      const wrap = document.getElementById('textEntries');
+      wrap.innerHTML = textEntries.map(e => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:flex-start;gap:12px;">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:3px;">${e.name}</div>
+        <div style="font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:500px;">${e.text.substring(0, 120)}…</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="removeTextEntry('${e.id}')">✕</button>
+    </div>`).join('');
+    }
+
+    // ═══════════════════════════════════════
+    // PROVIDER
+    // ═══════════════════════════════════════
+    function setProvider(p) {
+      selectedProvider = p;
+      document.getElementById('pt-claude').className = 'provider-tab' + (p === 'claude' ? ' active-claude' : '');
+      document.getElementById('pt-gemini').className = 'provider-tab' + (p === 'gemini' ? ' active-gemini' : '');
+    }
+
+    // ═══════════════════════════════════════
+    // SAVE ASSIGNMENT
+    // ═══════════════════════════════════════
+    function gatherAssignment() {
+      const isUpload = document.getElementById('submissionUploadPanel').style.display !== 'none';
+      return {
+        id: 'a' + Date.now(),
+        title: document.getElementById('nTitle').value.trim(),
+        cohort: document.getElementById('nCohort').value.trim(),
+        description: document.getElementById('nDesc').value.trim(),
+        criteria: getCriteria(),
+        provider: selectedProvider,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        results: [],
+        submissionType: isUpload ? 'file' : 'text',
+        filesMeta: currentFiles.map(f => ({ name: f.name, size: f.size })),
+        _files: isUpload ? [...currentFiles] : [],
+        _textEntries: isUpload ? [] : [...textEntries],
+      };
+    }
+
+    function validate(a) {
+      if (!a.title) { toast('Add an assignment title', 'err'); return false; }
+      if (!a.criteria.length) { toast('Add at least one criterion', 'err'); return false; }
+      if (a.submissionType === 'file' && !a._files.length) { toast('Upload at least one file', 'err'); return false; }
+      if (a.submissionType === 'text') {
+        const pending = document.getElementById('tText').value.trim();
+        if (!textEntries.length && !pending) { toast('Add at least one text submission', 'err'); return false; }
+        if (pending) { a._textEntries.push({ name: document.getElementById('tName').value.trim() || 'Learner', text: pending, id: 'te' + Date.now() }); }
+      }
+      return true;
+    }
+
+    function saveDraft() {
+      const a = gatherAssignment();
+      if (!a.title) { toast('Add a title first', 'err'); return; }
+      assignments.unshift(a);
+      persist();
+      refreshAll();
+      toast('Saved as draft');
+      clearNewForm();
+    }
+
+    async function saveAndEval() {
+      const a = gatherAssignment();
+      if (!validate(a)) return;
+      const key = a.provider === 'claude' ? cfg.claudeKey : cfg.geminiKey;
+      if (!key) { toast(`Add your ${a.provider === 'claude' ? 'Claude' : 'Gemini'} API key in Settings`, 'err'); nav('settings', document.querySelectorAll('.nav-item')[5]); return; }
+      assignments.unshift(a);
+      persist();
+      clearNewForm();
+      await evaluateAssignment(a.id);
+      nav('results', document.querySelectorAll('.nav-item')[3]);
+    }
+
+    function clearNewForm() {
+      document.getElementById('nTitle').value = '';
+      document.getElementById('nCohort').value = '';
+      document.getElementById('nDesc').value = '';
+      currentFiles = [];
+      textEntries = [];
+      renderFileTable();
+      renderTextEntries();
+      document.getElementById('tName').value = '';
+      document.getElementById('tText').value = '';
+    }
+
+    // ═══════════════════════════════════════
+    // EVALUATION ENGINE
+    // ═══════════════════════════════════════
+    async function evaluateAssignment(id) {
+      const a = assignments.find(x => x.id === id);
+      if (!a) return;
+      const subs = getSubmissions(a);
+      if (!subs.length) { toast('No submissions found', 'err'); return; }
+
+      a.status = 'evaluating';
+      persist();
+      renderBatch();
+
+      showLoad(`Evaluating: ${a.title}`, `Processing ${subs.length} submission${subs.length > 1 ? 's' : ''} with ${a.provider === 'claude' ? 'Claude' : 'Gemini'}`, 0);
+
+      const results = [];
+      for (let i = 0; i < subs.length; i++) {
+        const sub = subs[i];
+        updateLoad(`Evaluating ${i + 1}/${subs.length}: ${sub.name}`, Math.round((i / subs.length) * 90));
+        try {
+          const content = sub.type === 'text' ? sub.content : await readFile(sub.file);
+          let result;
+          if (a.provider === 'gemini') {
+            result = await evalWithGemini(a, sub.name, content);
+          } else {
+            result = await evalWithClaude(a, sub.name, content);
+          }
+          results.push({ name: sub.name, ...result });
+        } catch (err) {
+          results.push({ name: sub.name, error: err.message });
+        }
+      }
+
+      a.results = results;
+      a.status = 'done';
+      a.evaluatedAt = new Date().toISOString();
+      persist();
+      hideLoad();
+      refreshAll();
+      toast(`Evaluation complete — ${results.length} result${results.length > 1 ? 's' : ''}`, 'ok');
+    }
+
+    function getSubmissions(a) {
+      if (a.submissionType === 'text') {
+        return (a._textEntries || []).map(e => ({ name: e.name, type: 'text', content: e.text }));
+      }
+      return (a._files || []).map(f => ({ name: f.name, type: 'file', file: f }));
+    }
+
+    async function readFile(file) {
+      const e = file.name.split('.').pop().toLowerCase();
+      if (['txt', 'md'].includes(e)) {
+        return new Promise(res => { const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsText(file); });
+      }
+      if (e === 'pdf') {
+        return new Promise(res => {
+          const r = new FileReader();
+          r.onload = ev => res({ type: 'pdf', base64: ev.target.result.split(',')[1], name: file.name });
+          r.readAsDataURL(file);
+        });
+      }
+      if (['docx', 'doc'].includes(e)) {
+        return new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = ev => {
+            mammoth.extractRawText({ arrayBuffer: ev.target.result })
+              .then(result => res(result.value))
+              .catch(rej);
+          };
+          r.readAsArrayBuffer(file);
+        });
+      }
+      return new Promise(res => { const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsText(file); });
+    }
+
+    function buildPrompt(a, name, content) {
+      const criteriaText = a.criteria.map(c => `- ${c.name}: ${c.marks} marks`).join('\n');
+      const total = a.criteria.reduce((s, c) => s + c.marks, 0);
+      const contentBlock = typeof content === 'string' ? content.substring(0, 14000) : '[See attached PDF]';
+      return `You are an expert L&D evaluator. Evaluate the following assignment submission fairly and thoroughly. Respond ONLY in valid JSON, no markdown, no preamble. Language: ${cfg.lang}.
+
+ASSIGNMENT: ${a.title}
+COHORT: ${a.cohort || 'N/A'}
+CONTEXT: ${a.description || 'N/A'}
+SUBMISSION FROM: ${name}
+
+EVALUATION CRITERIA:
+${criteriaText}
+TOTAL POSSIBLE: ${total} marks
+
+SUBMISSION:
+${contentBlock}
+
+Respond with this exact JSON (no extra fields, no code blocks):
+{
+  "brief_summary": "2-3 sentence overview",
+  "detailed_summary": "Comprehensive 3-5 sentence analysis of quality, depth, clarity, originality",
+  "criteria_scores": [${a.criteria.map(c => `{"name":"${c.name}","max_marks":${c.marks},"awarded_marks":<number 0-${c.marks}>,"reasoning":"one sentence"}`).join(',')}],
+  "total_score": <number>,
+  "total_possible": ${total},
+  "percentage": <number, 1 decimal>,
+  "grade": "<A/B/C/D/F>",
+  "strengths": ["item","item"],
+  "improvements": ["item","item"],
+  "feedback_for_learner": "Constructive 2-3 sentence paragraph addressed directly to the learner",
+  "ai_influence_percentage": <integer 0-100, your honest estimate of what percentage of this submission appears to be AI-generated based on writing style, vocabulary, and structure>,
+  "ai_influence_note": "one brief sentence explaining your AI-usage assessment"
+}`;
+    }
+
+    async function evalWithClaude(a, name, content) {
+      const isPdf = typeof content === 'object' && content.type === 'pdf';
+      const messages = [{
+        role: 'user',
+        content: isPdf
+          ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: content.base64 } }, { type: 'text', text: buildPrompt(a, name, '[See attached PDF]') }]
+          : buildPrompt(a, name, content)
+      }];
+      const resp = await fetch('/api/anthropic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: cfg.claudeKey, model: cfg.claudeModel, max_tokens: 2000, system: 'You are a precise, fair academic evaluator. Always output valid JSON only.', messages })
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `API error ${resp.status}`); }
+      const data = await resp.json();
+      const raw = data.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+      return JSON.parse(raw);
+    }
+
+    async function evalWithGemini(a, name, content) {
+      const prompt = buildPrompt(a, name, typeof content === 'object' ? '[PDF content]' : content);
+      const parts = typeof content === 'object' && content.type === 'pdf'
+        ? [{ inline_data: { mime_type: 'application/pdf', data: content.base64 } }, { text: prompt }]
+        : [{ text: prompt }];
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cfg.geminiModel}:generateContent?key=${cfg.geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.3 } })
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `Gemini error ${resp.status}`); }
+      const data = await resp.json();
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
+      return JSON.parse(raw);
+    }
+
+    // ═══════════════════════════════════════
+    // BATCH
+    // ═══════════════════════════════════════
+    function renderBatch() {
+      const tbody = document.getElementById('batchBody');
+      if (!assignments.length) {
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty" style="padding:32px;"><h3>No assignments yet</h3><p>Create assignments from the sidebar</p></div></td></tr>`;
+        document.getElementById('batchRunBtn').disabled = true;
+        return;
+      }
+      tbody.innerHTML = assignments.map(a => {
+        const avgScore = a.results && a.results.length
+          ? (a.results.filter(r => r.percentage != null).reduce((s, r) => s + r.percentage, 0) / (a.results.filter(r => r.percentage != null).length || 1)).toFixed(1) + '%'
+          : '—';
+        const aiPctsB = (a.results || []).filter(r => r.ai_influence_percentage != null).map(r => r.ai_influence_percentage);
+        const avgAIB = aiPctsB.length ? Math.round(aiPctsB.reduce((s, v) => s + v, 0) / aiPctsB.length) : null;
+        const aiInfHtml = avgAIB != null ? `<span class="ai-influence-badge ${avgAIB < 30 ? 'ai-inf-low' : avgAIB < 60 ? 'ai-inf-mid' : 'ai-inf-high'}">${avgAIB}%</span>` : '<span style="color:var(--ink4);font-size:12px;">—</span>';
+        const filesHtml = (a.filesMeta || []).slice(0, 3).map(f => filePill(f.name)).join('') + (a.filesMeta?.length > 3 ? `<span style="font-size:11px;color:var(--ink3)">+${a.filesMeta.length - 3}</span>` : '');
+        const textCount = (a._textEntries || []).length;
+        const submCount = a.submissionType === 'text' ? textCount : (a.filesMeta || []).length;
+        return `<tr id="row_${a.id}">
+      <td><input type="checkbox" class="row-cb" data-id="${a.id}" onchange="updateBatchBtn()" ${a.status !== 'pending' ? 'disabled' : ''}/></td>
+      <td><div style="font-weight:600;font-size:13px;">${a.title}</div><div style="font-size:11px;color:var(--ink3);">${submCount} submission${submCount !== 1 ? 's' : ''}</div></td>
+      <td style="color:var(--ink3);font-size:12.5px;">${a.cohort || '—'}</td>
+      <td>${a.submissionType === 'text' ? `<span class="file-pill txt">TXT ×${textCount}</span>` : filesHtml}</td>
+      <td style="font-size:12.5px;">${a.criteria.length} criteria</td>
+      <td><span class="provider-chip ${a.provider}">${a.provider}</span></td>
+      <td><span class="status-badge status-${a.status === 'evaluating' ? 'evaluating' : '' + a.status} ${a.status === 'evaluating' ? 'pulse' : ''}">${a.status}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:13px;">${avgScore}</td>
+      <td>${aiInfHtml}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          ${a.status === 'pending' ? `<button class="btn btn-outline btn-xs" onclick="singleEval('${a.id}')">▶</button>` : ''}
+          ${a.status === 'done' ? `<button class="btn btn-outline btn-xs" onclick="navToResult('${a.id}')">View</button>` : ''}
+          ${a.status === 'done' ? `<button class="btn btn-outline btn-xs" onclick="downloadAllPDF('${a.id}')">↓ PDF</button>` : ''}
+          <button class="btn btn-danger btn-xs" onclick="openDelete('${a.id}')">✕</button>
+        </div>
+      </td>
+    </tr>`;
+      }).join('');
+    }
+
+    function updateBatchBtn() {
+      const checked = [...document.querySelectorAll('.row-cb:checked')].length;
+      document.getElementById('batchRunBtn').disabled = checked === 0;
+    }
+
+    function selectAll() {
+      document.querySelectorAll('.row-cb:not(:disabled)').forEach(cb => cb.checked = true);
+      document.getElementById('masterCb').checked = true;
+      updateBatchBtn();
+    }
+
+    function toggleAllCb(master) {
+      document.querySelectorAll('.row-cb:not(:disabled)').forEach(cb => cb.checked = master.checked);
+      updateBatchBtn();
+    }
+
+    async function runSelected() {
+      const ids = [...document.querySelectorAll('.row-cb:checked')].map(cb => cb.dataset.id);
+      if (!ids.length) return;
+      for (const id of ids) {
+        const a = assignments.find(x => x.id === id);
+        if (!a) continue;
+        const key = a.provider === 'claude' ? cfg.claudeKey : cfg.geminiKey;
+        if (!key) { toast(`No ${a.provider} API key — add in Settings`, 'err'); continue; }
+        await evaluateAssignment(id);
+      }
+      renderBatch();
+    }
+
+    async function singleEval(id) {
+      const a = assignments.find(x => x.id === id);
+      if (!a) return;
+      const key = a.provider === 'claude' ? cfg.claudeKey : cfg.geminiKey;
+      if (!key) { toast(`No ${a.provider} key in Settings`, 'err'); return; }
+      await evaluateAssignment(id);
+      renderBatch();
+    }
+
+    function navToResult(id) {
+      nav('results', document.querySelectorAll('.nav-item')[3]);
+      setTimeout(() => {
+        document.getElementById('rg_' + id)?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+
+    // ═══════════════════════════════════════
+    // RESULTS
+    // ═══════════════════════════════════════
+    function renderResults() {
+      const wrap = document.getElementById('resultsWrap');
+      const done = assignments.filter(a => a.status === 'done' && a.results?.length);
+      if (!done.length) {
+        wrap.innerHTML = `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>No results yet</h3><p>Evaluate some assignments to see detailed reports</p></div>`;
+        return;
+      }
+      wrap.innerHTML = done.map(a => `
+    <div id="rg_${a.id}" style="margin-bottom:32px;">
+      <div class="section-header">
+        <div class="section-title">${a.title} ${a.cohort ? `<span style="font-size:13px;font-weight:400;color:var(--ink3);font-family:'Instrument Sans',sans-serif;">— ${a.cohort}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="downloadAllPDF('${a.id}')">↓ Download PDF</button>
+          <button class="btn btn-outline btn-sm" onclick="exportToGoogleSheets('${a.id}')">📊 Export to Sheets</button>
+          <span class="provider-chip ${a.provider}">${a.provider}</span>
+          <span style="font-size:12px;color:var(--ink3);">${new Date(a.evaluatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        </div>
+      </div>
+      ${a.results.map((r, i) => resultHTML(r, a, i)).join('')}
+    </div>`).join('');
+      setTimeout(() => {
+        document.querySelectorAll('.mini-fill[data-pct]').forEach(el => { el.style.width = el.dataset.pct + '%'; });
+        document.querySelectorAll('.ai-inf-fill[data-aipct]').forEach(el => { el.style.width = el.dataset.aipct + '%'; });
+      }, 80);
+    }
+
+    function resultHTML(r, a, idx) {
+      const aId = a ? a.id : '';
+      if (r.error) return `<div class="result-block"><div class="result-block-header"><div class="result-filename">📄 ${r.name}</div><div style="color:var(--red);font-size:13px;">⚠ ${r.error}</div></div></div>`;
+      const pct = r.percentage || 0;
+      const color = pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--amber)' : 'var(--red)';
+      const gradeColor = { A: 'var(--green)', B: '#2d7a7a', C: 'var(--amber)', D: '#8a4a2d', F: 'var(--red)' }[r.grade] || 'var(--ink3)';
+      const aiPct = r.ai_influence_percentage;
+      const aiClass = aiPct == null ? '' : aiPct < 30 ? 'ai-inf-low' : aiPct < 60 ? 'ai-inf-mid' : 'ai-inf-high';
+      const aiLabel = aiPct == null ? '' : aiPct < 30 ? 'Low' : aiPct < 60 ? 'Medium' : 'High';
+      return `
+  <div class="result-block" data-result-id="${aId}-${idx}">
+    <div class="result-block-header">
+      <div class="result-filename">📄 ${r.name}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${aId ? `<button class="btn btn-outline btn-xs" onclick="downloadResultPDF('${aId}', ${idx})">↓ PDF</button>` : ''}
+        <div class="result-score-chip">
+          <div style="text-align:right;">
+            <div class="big-score" style="color:${color}">${pct}%</div>
+            <div style="font-size:11px;color:var(--ink3);">${r.total_score || 0} / ${r.total_possible || 0} marks</div>
+          </div>
+          <div class="grade-chip" style="color:${gradeColor};border-color:${gradeColor};">${r.grade || '—'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="result-body">
+      ${aiPct != null ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div class="result-section-title" style="margin-bottom:5px;">🤖 AI Influence Estimate</div>
+          <div class="ai-inf-bar"><div class="ai-inf-fill" data-aipct="${aiPct}" style="width:0%;background:${aiPct < 30 ? 'var(--green)' : aiPct < 60 ? 'var(--amber)' : 'var(--red)'}"></div></div>
+          ${r.ai_influence_note ? `<div style="font-size:11px;color:var(--ink3);margin-top:4px;">${r.ai_influence_note}</div>` : ''}
+        </div>
+        <span class="ai-influence-badge ${aiClass}">${aiLabel}: ${aiPct}%</span>
+      </div>` : ''}
+      <div class="result-section-title">Brief Summary</div>
+      <div class="summary-box" style="margin-bottom:10px;">${r.brief_summary || '—'}</div>
+      <div class="result-section-title">Detailed Analysis</div>
+      <div class="summary-box detailed" style="border-left-color:var(--claude); margin-bottom:14px;">${r.detailed_summary || '—'}</div>
+
+      ${r.criteria_scores?.length ? `
+      <div class="result-section-title">Criteria Breakdown</div>
+      <div style="margin-bottom:16px;">
+        ${r.criteria_scores.map(cs => `
+        <div class="crit-score-row">
+          <div>
+            <div class="crit-name">${cs.name}</div>
+            ${cs.reasoning ? `<div class="crit-reasoning">${cs.reasoning}</div>` : ''}
+          </div>
+          <div class="crit-pts" style="color:${cs.max_marks > 0 && cs.awarded_marks / cs.max_marks >= 0.7 ? 'var(--green)' : 'var(--amber)'};">${cs.awarded_marks} / ${cs.max_marks}</div>
+          <div><div class="mini-bar"><div class="mini-fill" data-pct="${cs.max_marks > 0 ? Math.round(cs.awarded_marks / cs.max_marks * 100) : 0}" style="width:0%;background:${cs.max_marks > 0 && cs.awarded_marks / cs.max_marks >= 0.7 ? 'var(--green)' : 'var(--amber)'}"></div></div></div>
+        </div>`).join('')}
+      </div>` : ''}
+
+      ${(r.strengths?.length || r.improvements?.length) ? `
+      <div class="two-col">
+        ${r.strengths?.length ? `<div>
+          <div class="result-section-title">✓ Strengths</div>
+          <div class="tag-list">${r.strengths.map(s => `<span class="tag strength">${s}</span>`).join('')}</div>
+        </div>` : ''}
+        ${r.improvements?.length ? `<div>
+          <div class="result-section-title">↑ Areas to Improve</div>
+          <div class="tag-list">${r.improvements.map(i => `<span class="tag improvement">${i}</span>`).join('')}</div>
+        </div>` : ''}
+      </div>` : ''}
+
+      ${r.feedback_for_learner ? `
+      <div class="result-section-title">💬 Feedback for Learner</div>
+      <div class="summary-box feedback">${r.feedback_for_learner}</div>` : ''}
+    </div>
+  </div>`;
+    }
+
+    // ═══════════════════════════════════════
+    // DASHBOARD
+    // ═══════════════════════════════════════
+    function renderDashboard() {
+      const total = assignments.length;
+      const pending = assignments.filter(a => a.status === 'pending').length;
+      const done = assignments.filter(a => a.status === 'done').length;
+      const files = assignments.reduce((s, a) => s + (a.filesMeta?.length || 0) + (a._textEntries?.length || 0), 0);
+      const allPcts = assignments.flatMap(a => (a.results || []).filter(r => r.percentage != null).map(r => r.percentage));
+      const avg = allPcts.length ? (allPcts.reduce((a, b) => a + b, 0) / allPcts.length).toFixed(1) + '%' : '—';
+
+      document.getElementById('s-total').textContent = total;
+      document.getElementById('s-pending').textContent = pending;
+      document.getElementById('s-done').textContent = done;
+      document.getElementById('s-avg').textContent = avg;
+      document.getElementById('s-files').textContent = files;
+      document.getElementById('pendingBadge').textContent = pending;
+      document.getElementById('resultsBadge').textContent = done;
+
+      const cards = document.getElementById('recentCards');
+      if (!assignments.length) {
+        cards.innerHTML = `<div class="empty"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><h3>Nothing here yet</h3><p>Create your first assignment to get started</p></div>`;
+        return;
+      }
+      cards.innerHTML = `<table class="batch-table" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;">
+    <thead><tr><th>Assignment</th><th>Cohort</th><th>Files</th><th>AI</th><th>Status</th><th>Score</th><th></th></tr></thead>
+    <tbody>${assignments.slice(0, 8).map(a => {
+        const avgScore = a.results?.length ? (a.results.filter(r => r.percentage != null).reduce((s, r) => s + r.percentage, 0) / (a.results.filter(r => r.percentage != null).length || 1)).toFixed(1) + '%' : '—';
+        return `<tr>
+        <td><div style="font-weight:600;font-size:13px;">${a.title}</div><div style="font-size:11px;color:var(--ink3);">${new Date(a.createdAt).toLocaleDateString()}</div></td>
+        <td style="font-size:12.5px;color:var(--ink3);">${a.cohort || '—'}</td>
+        <td>${(a.filesMeta || []).slice(0, 2).map(f => filePill(f.name)).join('')}${(a.filesMeta || []).length > 2 ? `+${a.filesMeta.length - 2}` : ''}${a.submissionType === 'text' ? `<span class="file-pill txt">TXT ×${(a._textEntries || []).length}</span>` : ''}</td>
+        <td><span class="provider-chip ${a.provider}">${a.provider}</span></td>
+        <td><span class="status-badge status-${a.status}">${a.status}</span></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:13px;">${avgScore}</td>
+        <td>${a.status === 'done' ? `<button class="btn btn-outline btn-xs" onclick="navToResult('${a.id}')">View</button>` : ''}</td>
+      </tr>`;
+      }).join('')}</tbody>
+  </table>`;
+    }
+
+    // ═══════════════════════════════════════
+    // DELETE
+    // ═══════════════════════════════════════
+    function openDelete(id) { deleteTargetId = id; document.getElementById('deleteModal').classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function confirmDelete() {
+      assignments = assignments.filter(a => a.id !== deleteTargetId);
+      persist();
+      closeModal('deleteModal');
+      refreshAll();
+      toast('Assignment deleted');
+    }
+
+    // ═══════════════════════════════════════
+    // SETTINGS
+    // ═══════════════════════════════════════
+    function loadSettingsUI() {
+      document.getElementById('claudeKey').value = cfg.claudeKey;
+      document.getElementById('claudeModel').value = cfg.claudeModel;
+      document.getElementById('geminiKey').value = cfg.geminiKey;
+      document.getElementById('geminiModel').value = cfg.geminiModel;
+      document.getElementById('evalLang').value = cfg.lang;
+      document.getElementById('googleClientId').value = cfg.googleClientId;
+    }
+    function saveClaude() {
+      cfg.claudeKey = document.getElementById('claudeKey').value.trim();
+      cfg.claudeModel = document.getElementById('claudeModel').value;
+      localStorage.setItem('ev_ckey', cfg.claudeKey);
+      localStorage.setItem('ev_cmodel', cfg.claudeModel);
+      updateKeyStatus();
+      toast('Claude settings saved', 'ok');
+    }
+    function saveGemini() {
+      cfg.geminiKey = document.getElementById('geminiKey').value.trim();
+      cfg.geminiModel = document.getElementById('geminiModel').value;
+      localStorage.setItem('ev_gkey', cfg.geminiKey);
+      localStorage.setItem('ev_gmodel', cfg.geminiModel);
+      updateKeyStatus();
+      toast('Gemini settings saved', 'ok');
+    }
+    function saveGeneral() {
+      cfg.lang = document.getElementById('evalLang').value;
+      localStorage.setItem('ev_lang', cfg.lang);
+      toast('Settings saved', 'ok');
+    }
+    function updateKeyStatus() {
+      const cd = document.getElementById('claudeDot');
+      const gd = document.getElementById('geminiDot');
+      cd.className = 'ai-dot' + (cfg.claudeKey ? ' ready' : '');
+      gd.className = 'ai-dot' + (cfg.geminiKey ? ' ready' : '');
+      document.getElementById('claudeStatus').textContent = cfg.claudeKey ? `Claude: ${cfg.claudeModel.split('-')[1]}` : 'Claude: no key';
+      document.getElementById('geminiStatus').textContent = cfg.geminiKey ? `Gemini: ${cfg.geminiModel}` : 'Gemini: no key';
+    }
+    function toggleVis(id, btn) {
+      const inp = document.getElementById(id);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+    }
+
+    // ═══════════════════════════════════════
+    // LOADING
+    // ═══════════════════════════════════════
+    function showLoad(title, sub, pct) {
+      document.getElementById('loadTitle').textContent = title;
+      document.getElementById('loadSub').textContent = sub;
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('loadingScreen').classList.add('show');
+    }
+    function updateLoad(title, pct) {
+      document.getElementById('loadTitle').textContent = title;
+      document.getElementById('progressBar').style.width = pct + '%';
+    }
+    function hideLoad() {
+      document.getElementById('progressBar').style.width = '100%';
+      setTimeout(() => document.getElementById('loadingScreen').classList.remove('show'), 300);
+    }
+
+    // ═══════════════════════════════════════
+    // TOAST
+    // ═══════════════════════════════════════
+    function toast(msg, type = '') {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      document.getElementById('toastTray').appendChild(t);
+      setTimeout(() => t.remove(), 3200);
+    }
+
+    // ═══════════════════════════════════════
+    // PERSIST & REFRESH
+    // ═══════════════════════════════════════
+    function persist() {
+      const clean = assignments.map(({ _files, _textEntries, ...rest }) => rest);
+      localStorage.setItem('ev_assignments', JSON.stringify(clean));
+    }
+
+    function refreshAll() {
+      renderDashboard();
+      renderBatch();
+    }
+
+    // ═══════════════════════════════════════
+    // DOWNLOAD & EXPORT
+    // ═══════════════════════════════════════
+    function downloadCSV(rows, filename) {
+      const escape = v => {
+        const s = String(v ?? '');
+        return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = rows.map(row => row.map(escape).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function buildResultRows(a) {
+      const critHeaders = a.criteria.map(c => `${c.name} (/${c.marks})`);
+      const headers = [
+        'Name', 'Score', 'Max Score', 'Percentage', 'Grade', 'AI Influence %',
+        ...critHeaders,
+        'Brief Summary', 'Feedback for Learner', 'Strengths', 'Areas to Improve'
+      ];
+      const rows = (a.results || []).filter(r => !r.error).map(r => [
+        r.name,
+        r.total_score ?? '',
+        r.total_possible ?? '',
+        r.percentage != null ? r.percentage + '%' : '',
+        r.grade ?? '',
+        r.ai_influence_percentage != null ? r.ai_influence_percentage + '%' : '',
+        ...a.criteria.map(c => {
+          const cs = (r.criteria_scores || []).find(x => x.name === c.name);
+          return cs != null ? cs.awarded_marks : '';
+        }),
+        r.brief_summary || '',
+        r.feedback_for_learner || '',
+        (r.strengths || []).join('; '),
+        (r.improvements || []).join('; ')
+      ]);
+      return { headers, rows };
+    }
+
+    // Renders an HTML string in an off-screen container and returns a full-height canvas.
+    // Placing the element off-screen (left: -9999px) means it renders at its natural height
+    // without any viewport clipping, which fixes the PDF cut-off issue.
+    async function captureHTML(html, width = 760) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `position:fixed;top:0;left:-9999px;width:${width}px;background:#fff;z-index:-1;`;
+      wrap.innerHTML = html;
+      document.body.appendChild(wrap);
+      await new Promise(res => setTimeout(res, 120)); // let layout settle
+      const canvas = await html2canvas(wrap, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width,
+        windowWidth: width,
+      });
+      document.body.removeChild(wrap);
+      return canvas;
+    }
+
+    // Builds a clean learner-facing HTML card — no marks, scores, or grades.
+    function buildLearnerHTML(r, a) {
+      const date = a.evaluatedAt
+        ? new Date(a.evaluatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+        : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      const tag = (text, bg, color, border) =>
+        `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:3px 10px;font-size:12px;margin:2px 2px 2px 0;">${text}</span>`;
+
+      const strengthTags = (r.strengths || []).map(s => tag(s, '#eaf3ed', '#2d7a4a', '#b5d8c0')).join('');
+      const improvTags   = (r.improvements || []).map(i => tag(i, '#fdf3e8', '#b5620d', '#e8c88a')).join('');
+
+      const section = (label, content) => `
+        <div style="margin-bottom:20px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#8a847a;font-weight:600;margin-bottom:8px;">${label}</div>
+          ${content}
+        </div>`;
+
+      const box = (text, borderColor = '#c8c0b0', bg = '#fff') =>
+        `<div style="background:${bg};border-left:3px solid ${borderColor};border-radius:7px;padding:14px 16px;font-size:13.5px;line-height:1.75;color:#1a1714;">${text}</div>`;
+
+      return `
+        <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1714;background:#f5f2ec;">
+          <!-- Header -->
+          <div style="background:#1a1714;padding:26px 30px 22px;">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:rgba(255,255,255,0.38);margin-bottom:7px;">EvalBoard · Learning &amp; Development</div>
+            <div style="font-size:21px;font-weight:700;color:#fff;margin-bottom:5px;">${a.title}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.52);">${r.name}${a.cohort ? ' &nbsp;·&nbsp; ' + a.cohort : ''} &nbsp;·&nbsp; ${date}</div>
+          </div>
+
+          <!-- Body -->
+          <div style="padding:26px 30px 10px;">
+            ${r.brief_summary    ? section('Overview',          box(r.brief_summary)) : ''}
+            ${r.detailed_summary ? section('Detailed Analysis', box(r.detailed_summary, '#c4622d')) : ''}
+
+            ${(r.strengths?.length || r.improvements?.length) ? `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+              ${r.strengths?.length ? `
+              <div>
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#8a847a;font-weight:600;margin-bottom:8px;">✓ Strengths</div>
+                <div>${strengthTags}</div>
+              </div>` : ''}
+              ${r.improvements?.length ? `
+              <div>
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#8a847a;font-weight:600;margin-bottom:8px;">↑ Areas to Improve</div>
+                <div>${improvTags}</div>
+              </div>` : ''}
+            </div>` : ''}
+
+            ${r.feedback_for_learner ? section('💬 Feedback for You', box(r.feedback_for_learner, '#2d7a4a', '#eaf3ed')) : ''}
+          </div>
+
+          <!-- Footer -->
+          <div style="padding:12px 30px 16px;border-top:1px solid #ddd8cc;text-align:right;font-size:10px;color:#b8b2a8;">
+            Generated by EvalBoard &nbsp;·&nbsp; ${date}
+          </div>
+        </div>`;
+    }
+
+    async function downloadResultPDF(assignmentId, idx) {
+      const a = assignments.find(x => x.id === assignmentId);
+      if (!a) return;
+      const r = a.results[idx];
+      if (!r || r.error) { toast('No data to download', 'err'); return; }
+      toast('Generating PDF…');
+      try {
+        const canvas = await captureHTML(buildLearnerHTML(r, a));
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdfW = canvas.width / 2;
+        const pdfH = canvas.height / 2;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [pdfW, pdfH] });
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+        const safeName  = r.name.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+        const safeTitle = a.title.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+        pdf.save(`${safeTitle} - ${safeName}.pdf`);
+        toast('PDF saved', 'ok');
+      } catch (err) {
+        console.error(err);
+        toast('PDF generation failed: ' + err.message, 'err');
+      }
+    }
+
+    async function downloadAllPDF(assignmentId) {
+      const a = assignments.find(x => x.id === assignmentId);
+      if (!a || !a.results?.length) { toast('No results to download', 'err'); return; }
+      const valid = a.results.filter(r => !r.error);
+      if (!valid.length) { toast('No valid results to download', 'err'); return; }
+      toast(`Generating PDF for ${valid.length} learner${valid.length > 1 ? 's' : ''}…`);
+      try {
+        const { jsPDF } = window.jspdf;
+        let pdf = null;
+        for (const r of valid) {
+          const canvas  = await captureHTML(buildLearnerHTML(r, a));
+          const imgData = canvas.toDataURL('image/png');
+          const pdfW    = canvas.width / 2;
+          const pdfH    = canvas.height / 2;
+          if (!pdf) {
+            pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [pdfW, pdfH] });
+          } else {
+            pdf.addPage([pdfW, pdfH], 'portrait');
+          }
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+        }
+        if (pdf) {
+          const safeTitle = a.title.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+          pdf.save(`${safeTitle} - All Results.pdf`);
+          toast(`PDF with ${valid.length} result${valid.length > 1 ? 's' : ''} saved`, 'ok');
+        }
+      } catch (err) {
+        console.error(err);
+        toast('PDF generation failed: ' + err.message, 'err');
+      }
+    }
+
+    async function exportToGoogleSheets(assignmentId) {
+      const a = assignments.find(x => x.id === assignmentId);
+      if (!a || !a.results?.length) { toast('No results to export', 'err'); return; }
+
+      if (!cfg.googleClientId) {
+        // Fallback: copy TSV to clipboard — user pastes into Google Sheets
+        const { headers, rows } = buildResultRows(a);
+        const tsv = [headers, ...rows].map(row => row.join('\t')).join('\n');
+        try {
+          await navigator.clipboard.writeText(tsv);
+          toast('Copied! Open a new Google Sheet and press Ctrl+V / Cmd+V', 'ok');
+        } catch {
+          toast('Clipboard blocked — add a Google Client ID in Settings for direct export', 'err');
+        }
+        return;
+      }
+
+      // Direct export via Google Sheets API + OAuth
+      if (typeof google === 'undefined') {
+        toast('Google auth not loaded — please reload the page', 'err');
+        return;
+      }
+      try {
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: cfg.googleClientId,
+          scope: 'https://www.googleapis.com/auth/spreadsheets',
+          callback: async (tokenResponse) => {
+            if (tokenResponse.error) { toast('Google auth failed: ' + tokenResponse.error, 'err'); return; }
+            await writeToGoogleSheet(assignmentId, tokenResponse.access_token);
+          }
+        });
+        client.requestAccessToken();
+      } catch (err) {
+        toast('Google auth error: ' + err.message, 'err');
+      }
+    }
+
+    async function writeToGoogleSheet(assignmentId, accessToken) {
+      const a = assignments.find(x => x.id === assignmentId);
+      if (!a) return;
+      const { headers, rows } = buildResultRows(a);
+      showLoad('Exporting…', 'Creating Google Sheet', 20);
+      try {
+        const createResp = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { title: `EvalBoard — ${a.title}` } })
+        });
+        if (!createResp.ok) {
+          const e = await createResp.json();
+          throw new Error(e.error?.message || 'Failed to create sheet');
+        }
+        const sheet = await createResp.json();
+        const sid = sheet.spreadsheetId;
+        updateLoad('Writing data…', 70);
+        const writeResp = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Sheet1!A1?valueInputOption=RAW`,
+          {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [headers, ...rows] })
+          }
+        );
+        if (!writeResp.ok) {
+          const e = await writeResp.json();
+          throw new Error(e.error?.message || 'Failed to write data');
+        }
+        hideLoad();
+        toast('Exported! Opening Google Sheet…', 'ok');
+        window.open(`https://docs.google.com/spreadsheets/d/${sid}`, '_blank');
+      } catch (err) {
+        hideLoad();
+        toast('Export failed: ' + err.message, 'err');
+      }
+    }
+
+    // ═══════════════════════════════════════
+    // GOOGLE SETTINGS
+    // ═══════════════════════════════════════
+    function saveGoogle() {
+      cfg.googleClientId = document.getElementById('googleClientId').value.trim();
+      localStorage.setItem('ev_gcid', cfg.googleClientId);
+      toast(cfg.googleClientId ? 'Google settings saved' : 'Google Client ID cleared — clipboard export will be used', 'ok');
+    }
+  </script>
+</body>
+
+</html>
