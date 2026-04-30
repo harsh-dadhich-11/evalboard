@@ -1958,6 +1958,27 @@
           } else {
             result = await evalWithClaude(a, sub.name, content);
           }
+
+          // Enforce mathematically correct calculations to prevent LLM math hallucinations
+          if (result && result.criteria_scores) {
+            let awarded = 0;
+            result.criteria_scores.forEach(cs => {
+               const originalCrit = a.criteria.find(c => c.name === cs.name);
+               if (originalCrit) cs.max_marks = originalCrit.marks; // ensure max_marks is not hallucinated
+               awarded += Number(cs.awarded_marks) || 0;
+            });
+            const assignmentPossible = a.criteria.reduce((s, c) => s + c.marks, 0);
+            result.total_possible = assignmentPossible;
+            result.total_score = awarded;
+            result.percentage = assignmentPossible > 0 ? Number(((awarded / assignmentPossible) * 100).toFixed(1)) : 0;
+            
+            if (result.percentage >= 90) result.grade = 'A';
+            else if (result.percentage >= 80) result.grade = 'B';
+            else if (result.percentage >= 70) result.grade = 'C';
+            else if (result.percentage >= 60) result.grade = 'D';
+            else result.grade = 'F';
+          }
+
           results.push({ name: sub.name, ...result });
         } catch (err) {
           results.push({ name: sub.name, error: err.message });
@@ -2009,7 +2030,7 @@
     function buildPrompt(a, name, content) {
       const criteriaText = a.criteria.map(c => `- ${c.name}: ${c.marks} marks`).join('\n');
       const total = a.criteria.reduce((s, c) => s + c.marks, 0);
-      const contentBlock = typeof content === 'string' ? content.substring(0, 14000) : '[See attached PDF]';
+      const contentBlock = typeof content === 'string' ? content.substring(0, 100000) : '[See attached PDF]';
       return `You are an expert L&D evaluator. Evaluate the following assignment submission fairly and thoroughly. Respond ONLY in valid JSON, no markdown, no preamble. Language: ${cfg.lang}.
 
 ASSIGNMENT: ${a.title}
@@ -2056,11 +2077,14 @@ Respond with this exact JSON (no extra fields, no code blocks):
       const resp = await fetch('/api/anthropic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: cfg.claudeKey, model: cfg.claudeModel, max_tokens: 2000, temperature: 0.0, system: 'You are a precise, fair academic evaluator. Always output valid JSON only.', messages })
+        body: JSON.stringify({ apiKey: cfg.claudeKey, model: cfg.claudeModel, max_tokens: 4000, temperature: 0.0, system: 'You are a precise, fair academic evaluator. Always output valid JSON only.', messages })
       });
       if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `API error ${resp.status}`); }
       const data = await resp.json();
-      const raw = data.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+      let raw = data.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+      const firstBrace = raw.indexOf('{');
+      const lastBrace = raw.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) raw = raw.substring(firstBrace, lastBrace + 1);
       return JSON.parse(raw);
     }
 
@@ -2072,11 +2096,18 @@ Respond with this exact JSON (no extra fields, no code blocks):
       const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cfg.geminiModel}:generateContent?key=${cfg.geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.0, responseMimeType: "application/json" } })
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: "You are a precise, fair academic evaluator. Always output valid JSON only." }] },
+          contents: [{ parts }],
+          generationConfig: { temperature: 0.0, responseMimeType: "application/json" }
+        })
       });
       if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `Gemini error ${resp.status}`); }
       const data = await resp.json();
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
+      let raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
+      const firstBrace = raw.indexOf('{');
+      const lastBrace = raw.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) raw = raw.substring(firstBrace, lastBrace + 1);
       return JSON.parse(raw);
     }
 

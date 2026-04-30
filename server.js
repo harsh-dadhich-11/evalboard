@@ -1,33 +1,28 @@
+import "dotenv/config";
 import express from "express";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import bcrypt from "bcryptjs";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-// ── USERS STORE ──────────────────────────────────────────────────────────────
-// users.json lives next to server.js; create it if missing
-const USERS_FILE =
-  process.env.USERS_FILE_PATH ||
-  (process.env.VERCEL
-    ? path.join("/tmp", "users.json")
-    : path.join(__dirname, "users.json"));
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
+const ENV_AUTH_USERNAME = process.env.AUTH_USERNAME;
+const ENV_AUTH_PASSWORD = process.env.AUTH_PASSWORD;
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
-function loadUsers() {
-  return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+if (!ENV_AUTH_USERNAME || !ENV_AUTH_PASSWORD) {
+  throw new Error(
+    "Missing AUTH_USERNAME or AUTH_PASSWORD in environment variables."
+  );
 }
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-function findUser(predicate) {
-  return loadUsers().find(predicate);
+
+if (!SESSION_SECRET || SESSION_SECRET === "evalboard-dev-secret-change-me") {
+  throw new Error(
+    "SESSION_SECRET must be set to a strong random value before starting the server."
+  );
 }
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
@@ -35,7 +30,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "evalboard-dev-secret-change-me",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -50,58 +45,30 @@ app.use(passport.session());
 
 // ── PASSPORT: LOCAL ───────────────────────────────────────────────────────────
 passport.use(
-  new LocalStrategy(async (username, password, done) => {
-    const user = findUser(
-      (u) => u.username === username && u.provider === "local"
-    );
-    if (!user) return done(null, false, { message: "Invalid credentials" });
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return done(null, false, { message: "Invalid credentials" });
-    return done(null, user);
+  new LocalStrategy((username, password, done) => {
+    if (username !== ENV_AUTH_USERNAME || password !== ENV_AUTH_PASSWORD) {
+      return done(null, false, { message: "Invalid credentials" });
+    }
+
+    return done(null, {
+      id: "env_local_user",
+      username: ENV_AUTH_USERNAME,
+      displayName: ENV_AUTH_USERNAME,
+      provider: "env-local",
+    });
   })
 );
-
-// ── PASSPORT: GOOGLE ──────────────────────────────────────────────────────────
-const HAS_GOOGLE_AUTH =
-  Boolean(process.env.GOOGLE_CLIENT_ID) &&
-  Boolean(process.env.GOOGLE_CLIENT_SECRET);
-
-if (HAS_GOOGLE_AUTH) {
-  passport.use(
-    new GoogleStrategy(
-      {
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || "/auth/google/callback",
-      },
-      (accessToken, refreshToken, profile, done) => {
-        const users = loadUsers();
-        let user = users.find(
-          (u) => u.provider === "google" && u.googleId === profile.id
-        );
-        if (!user) {
-          // Auto-register on first Google sign-in
-          user = {
-            id: `google_${profile.id}`,
-            googleId: profile.id,
-            username: profile.emails?.[0]?.value || profile.displayName,
-            displayName: profile.displayName,
-            provider: "google",
-          };
-          users.push(user);
-          saveUsers(users);
-        }
-        return done(null, user);
-      }
-    )
-  );
-}
 
 // ── PASSPORT: SESSION SERIALIZATION ──────────────────────────────────────────
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => {
-  const user = findUser((u) => u.id === id);
-  done(null, user || false);
+  if (id !== "env_local_user") return done(null, false);
+  done(null, {
+    id: "env_local_user",
+    username: ENV_AUTH_USERNAME,
+    displayName: ENV_AUTH_USERNAME,
+    provider: "env-local",
+  });
 });
 
 // ── AUTH GUARD ────────────────────────────────────────────────────────────────
@@ -126,62 +93,6 @@ app.post(
   }),
   (req, res) => res.redirect("/")
 );
-
-// Register a new local user (POST — you can expose a UI or call via curl)
-app.post("/auth/register", async (req, res) => {
-  const { username, password, adminSecret } = req.body;
-
-  // Protect registration with an admin secret set via env var
-  if (adminSecret !== process.env.ADMIN_SECRET) {
-    return res.status(403).json({ error: "Forbidden" });
-  }
-  if (!username || !password) {
-    return res.status(400).json({ error: "username and password required" });
-  }
-
-  const users = loadUsers();
-  if (users.find((u) => u.username === username && u.provider === "local")) {
-    return res.status(409).json({ error: "Username already exists" });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user = {
-    id: `local_${Date.now()}`,
-    username,
-    displayName: username,
-    provider: "local",
-    passwordHash,
-  };
-  users.push(user);
-  saveUsers(users);
-  res.json({ ok: true, username });
-});
-
-// Google OAuth
-if (HAS_GOOGLE_AUTH) {
-  app.get(
-    "/auth/google",
-    passport.authenticate("google", { scope: ["profile", "email"] })
-  );
-  app.get(
-    "/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login?error=google" }),
-    (req, res) => res.redirect("/")
-  );
-} else {
-  app.get("/auth/google", (req, res) => {
-    res.status(503).json({
-      error:
-        "Google authentication is not configured on this deployment. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
-    });
-  });
-  app.get("/auth/google/callback", (req, res) => {
-    res.status(503).json({
-      error:
-        "Google authentication callback is unavailable because Google auth is not configured.",
-    });
-  });
-}
 
 // Logout
 app.get("/logout", (req, res, next) => {
