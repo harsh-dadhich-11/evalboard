@@ -13,7 +13,11 @@ const app = express();
 
 // ── USERS STORE ──────────────────────────────────────────────────────────────
 // users.json lives next to server.js; create it if missing
-const USERS_FILE = path.join(__dirname, "users.json");
+const USERS_FILE =
+  process.env.USERS_FILE_PATH ||
+  (process.env.VERCEL
+    ? path.join("/tmp", "users.json")
+    : path.join(__dirname, "users.json"));
 if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
 
 function loadUsers() {
@@ -58,7 +62,11 @@ passport.use(
 );
 
 // ── PASSPORT: GOOGLE ──────────────────────────────────────────────────────────
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+const HAS_GOOGLE_AUTH =
+  Boolean(process.env.GOOGLE_CLIENT_ID) &&
+  Boolean(process.env.GOOGLE_CLIENT_SECRET);
+
+if (HAS_GOOGLE_AUTH) {
   passport.use(
     new GoogleStrategy(
       {
@@ -150,15 +158,30 @@ app.post("/auth/register", async (req, res) => {
 });
 
 // Google OAuth
-app.get(
-  "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login?error=google" }),
-  (req, res) => res.redirect("/")
-);
+if (HAS_GOOGLE_AUTH) {
+  app.get(
+    "/auth/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+  app.get(
+    "/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/login?error=google" }),
+    (req, res) => res.redirect("/")
+  );
+} else {
+  app.get("/auth/google", (req, res) => {
+    res.status(503).json({
+      error:
+        "Google authentication is not configured on this deployment. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
+    });
+  });
+  app.get("/auth/google/callback", (req, res) => {
+    res.status(503).json({
+      error:
+        "Google authentication callback is unavailable because Google auth is not configured.",
+    });
+  });
+}
 
 // Logout
 app.get("/logout", (req, res, next) => {
