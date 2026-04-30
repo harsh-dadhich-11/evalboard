@@ -1335,7 +1335,7 @@
       </div>
       <nav class="nav">
         <div class="nav-section-label">Workspace</div>
-        <button class="nav-item active" onclick="nav('dashboard',this)">
+        <button class="nav-item" onclick="nav('dashboard',this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <rect x="3" y="3" width="7" height="7" />
             <rect x="14" y="3" width="7" height="7" />
@@ -1344,7 +1344,7 @@
           </svg>
           Dashboard
         </button>
-        <button class="nav-item" onclick="nav('new',this)">
+        <button class="nav-item active" onclick="nav('new',this)">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="16" />
@@ -1396,7 +1396,7 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-left">
-          <div class="page-title" id="pageTitle">Dashboard</div>
+          <div class="page-title" id="pageTitle">New Assignment</div>
         </div>
         <div class="topbar-right" id="topbarActions">
           <button class="btn btn-outline btn-sm" onclick="nav('new', document.querySelectorAll('.nav-item')[1])">+
@@ -1409,7 +1409,7 @@
       <div class="content">
 
         <!-- ══════ DASHBOARD ══════ -->
-        <div class="view active" id="view-dashboard">
+        <div class="view" id="view-dashboard">
           <div class="stats-row">
             <div class="stat-card">
               <div class="stat-label">Total</div>
@@ -1447,7 +1447,7 @@
         </div>
 
         <!-- ══════ NEW ASSIGNMENT ══════ -->
-        <div class="view" id="view-new">
+        <div class="view active" id="view-new">
           <!-- Step 1: Details -->
           <div class="card">
             <div class="card-title" style="margin-bottom:16px;">① Assignment Details</div>
