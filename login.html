@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EvalBoard — Sign In</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f2ec;
+      --surface: #ffffff;
+      --surface2: #f0ece3;
+      --border: #ddd8cc;
+      --border2: #c8c0b0;
+      --ink: #1a1714;
+      --ink2: #4a4540;
+      --ink3: #8a847a;
+      --ink4: #b8b2a8;
+      --claude: #c4622d;
+      --claude-light: #fdf0ea;
+      --claude-border: #f0c9b5;
+      --radius: 12px;
+      --radius-sm: 7px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Instrument Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* decorative background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(196,98,45,0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(26,107,138,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: var(--ink);
+      padding: 32px 36px 28px;
+      text-align: center;
+    }
+
+    .brand-mark {
+      font-family: 'Fraunces', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .brand-mark em { color: var(--claude); font-style: italic; }
+
+    .brand-tagline {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 6px;
+    }
+
+    .card-body { padding: 32px 36px; }
+
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink3);
+      margin-bottom: 14px;
+    }
+
+    /* Google button */
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 16px;
+      border: 1.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-google:hover {
+      border-color: var(--ink3);
+      background: var(--surface2);
+    }
+    .btn-google svg { flex-shrink: 0; }
+
+    /* disabled state when env vars not set */
+    .btn-google.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0;
+      color: var(--ink4);
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .form-group { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink2);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+
+    input[type=text], input[type=password] {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px;
+      color: var(--ink);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type=text]:focus, input[type=password]:focus {
+      border-color: var(--ink3);
+    }
+    input::placeholder { color: var(--ink4); }
+
+    .btn-primary {
+      width: 100%;
+      padding: 11px 16px;
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    .btn-primary:hover { background: #2d2a26; }
+
+    .error-banner {
+      display: none;
+      background: #fdeaea;
+      border: 1px solid #f0c0c0;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #9b2c2c;
+      margin-bottom: 18px;
+    }
+    .error-banner.visible { display: block; }
+
+    .card-footer {
+      padding: 16px 36px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      text-align: center;
+      font-size: 12px;
+      color: var(--ink3);
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <div class="brand-mark">Eval<em>Board</em></div>
+    <div class="brand-tagline">L&amp;D Assignment Evaluator</div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner">
+      Invalid username or password. Please try again.
+    </div>
+
+    <!-- Google OAuth -->
+    <div class="section-label">Sign in with</div>
+    <a href="/auth/google" class="btn-google" id="googleBtn">
+      <!-- Google logo SVG -->
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        <path fill="none" d="M0 0h48v48H0z"/>
+      </svg>
+      Continue with Google
+    </a>
+
+    <div class="divider">or</div>
+
+    <!-- Local login -->
+    <div class="section-label">Username &amp; Password</div>
+    <form action="/auth/local" method="POST">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="your username" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn-primary">Sign In</button>
+    </form>
+
+  </div>
+
+  <div class="card-footer">
+    Access restricted to authorised users only.
+  </div>
+</div>
+
+<script>
+  // Show error banner from query param
+  const params = new URLSearchParams(location.search);
+  if (params.get('error')) {
+    const banner = document.getElementById('errorBanner');
+    banner.classList.add('visible');
+    if (params.get('error') === 'google') {
+      banner.textContent = 'Google sign-in failed. Please try again or use username/password.';
+    }
+  }
+
+  // Disable Google button if not configured (server will still reject, but UX hint)
+  fetch('/auth/google', { method: 'HEAD', redirect: 'manual' })
+    .then(r => {
+      if (r.type === 'opaqueredirect') return; // working fine
+    })
+    .catch(() => {
+      document.getElementById('googleBtn').classList.add('disabled');
+      document.getElementById('googleBtn').title = 'Google OAuth not configured';
+    });
+</script>
+
+</body>
+</html>

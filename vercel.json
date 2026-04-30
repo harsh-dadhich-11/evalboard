@@ -1,11 +1,15 @@
 {
-  "rewrites": [
-    { "source": "/api/anthropic", "destination": "/api/anthropic" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/anthropic.js": {
-      "maxDuration": 60
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ]
 }

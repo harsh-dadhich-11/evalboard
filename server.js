@@ -1,48 +1,194 @@
-const express = require('express');
-const path = require('path');
+import express from "express";
+import session from "express-session";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Parse JSON bodies up to 50 MB (for base64-encoded PDFs)
-app.use(express.json({ limit: '50mb' }));
+// ── USERS STORE ──────────────────────────────────────────────────────────────
+// users.json lives next to server.js; create it if missing
+const USERS_FILE = path.join(__dirname, "users.json");
+if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
 
-// Serve index.html and any other static files from this directory
+function loadUsers() {
+  return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+}
+function saveUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+function findUser(predicate) {
+  return loadUsers().find(predicate);
+}
+
+// ── MIDDLEWARE ────────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "evalboard-dev-secret-change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    },
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ── PASSPORT: LOCAL ───────────────────────────────────────────────────────────
+passport.use(
+  new LocalStrategy(async (username, password, done) => {
+    const user = findUser(
+      (u) => u.username === username && u.provider === "local"
+    );
+    if (!user) return done(null, false, { message: "Invalid credentials" });
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return done(null, false, { message: "Invalid credentials" });
+    return done(null, user);
+  })
+);
+
+// ── PASSPORT: GOOGLE ──────────────────────────────────────────────────────────
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL || "/auth/google/callback",
+      },
+      (accessToken, refreshToken, profile, done) => {
+        const users = loadUsers();
+        let user = users.find(
+          (u) => u.provider === "google" && u.googleId === profile.id
+        );
+        if (!user) {
+          // Auto-register on first Google sign-in
+          user = {
+            id: `google_${profile.id}`,
+            googleId: profile.id,
+            username: profile.emails?.[0]?.value || profile.displayName,
+            displayName: profile.displayName,
+            provider: "google",
+          };
+          users.push(user);
+          saveUsers(users);
+        }
+        return done(null, user);
+      }
+    )
+  );
+}
+
+// ── PASSPORT: SESSION SERIALIZATION ──────────────────────────────────────────
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => {
+  const user = findUser((u) => u.id === id);
+  done(null, user || false);
+});
+
+// ── AUTH GUARD ────────────────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.redirect("/login");
+}
+
+// ── AUTH ROUTES ───────────────────────────────────────────────────────────────
+
+// Login page
+app.get("/login", (req, res) => {
+  if (req.isAuthenticated()) return res.redirect("/");
+  res.sendFile(path.join(__dirname, "login.html"));
+});
+
+// Local login
+app.post(
+  "/auth/local",
+  passport.authenticate("local", {
+    failureRedirect: "/login?error=invalid",
+  }),
+  (req, res) => res.redirect("/")
+);
+
+// Register a new local user (POST — you can expose a UI or call via curl)
+app.post("/auth/register", async (req, res) => {
+  const { username, password, adminSecret } = req.body;
+
+  // Protect registration with an admin secret set via env var
+  if (adminSecret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  if (!username || !password) {
+    return res.status(400).json({ error: "username and password required" });
+  }
+
+  const users = loadUsers();
+  if (users.find((u) => u.username === username && u.provider === "local")) {
+    return res.status(409).json({ error: "Username already exists" });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = {
+    id: `local_${Date.now()}`,
+    username,
+    displayName: username,
+    provider: "local",
+    passwordHash,
+  };
+  users.push(user);
+  saveUsers(users);
+  res.json({ ok: true, username });
+});
+
+// Google OAuth
+app.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+app.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login?error=google" }),
+  (req, res) => res.redirect("/")
+);
+
+// Logout
+app.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.redirect("/login");
+  });
+});
+
+// ── API: current user info (used by frontend) ─────────────────────────────────
+app.get("/api/me", requireAuth, (req, res) => {
+  res.json({
+    username: req.user.username,
+    displayName: req.user.displayName,
+    provider: req.user.provider,
+  });
+});
+
+// ── PROTECTED: main app ───────────────────────────────────────────────────────
+app.get("/", requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// All other static assets (no auth needed for fonts/scripts, but index.html is guarded above)
 app.use(express.static(__dirname));
 
-// ── Anthropic proxy ──────────────────────────────────────────────────────────
-// Forwards the request to the Anthropic API so the browser never hits the
-// api.anthropic.com domain directly (avoids CORS errors).
-app.post('/api/anthropic', async (req, res) => {
-  const { apiKey, ...anthropicBody } = req.body;
+// ── START ─────────────────────────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`EvalBoard running on http://localhost:${PORT}`)
+);
 
-  if (!apiKey) {
-    return res.status(400).json({ error: { message: 'Anthropic API key is missing.' } });
-  }
-
-  try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(anthropicBody),
-    });
-
-    const data = await upstream.json();
-    res.status(upstream.status).json(data);
-  } catch (err) {
-    res.status(500).json({ error: { message: err.message } });
-  }
-});
-
-// Fallback: serve index.html for any unmatched GET (single-page app)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`\n  EvalBoard is running → http://localhost:${PORT}\n`);
-});
+export default app; // needed for Vercel serverless
