@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import session from "express-session";
+import session from "cookie-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import path from "path";
@@ -26,18 +26,16 @@ if (!SESSION_SECRET || SESSION_SECRET === "evalboard-dev-secret-change-me") {
 }
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
+    name: "session",
+    keys: [SESSION_SECRET],
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   })
 );
 app.use(passport.initialize());
