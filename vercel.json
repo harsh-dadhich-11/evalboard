@@ -2,11 +2,19 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/anthropic.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/anthropic",
+      "dest": "/api/anthropic.js"
+    },
     {
       "src": "/(.*)",
       "dest": "server.js"
